@@ -1,8 +1,13 @@
+#Nehal - 2024149 - I type and simulator code
+#Shabd - 2024516 - S tpe and simulator code
+#Priyanshu - 2024442 - B-J Type
+#Harshit - 2024244 - R Type
+
 import sys
 
 # Global registers and PC
 REG = [0] * 32
-REG[2] = 380  # x2 = sp initialized to 380
+REG[2] = 380 
 PC = 0
 
 # Original memory initialization
@@ -19,17 +24,17 @@ ORIG_MEMORY = {
 ORIG_MEMORY_KEYS = list(ORIG_MEMORY.keys())
 memory_values = ORIG_MEMORY.copy()
 
-def bin_to_dec(binary, signed=True):
-    if not signed:
-        return int(binary, 2)
-    if binary[0] == '1':
-        return int(binary, 2) - (2 ** len(binary))
-    return int(binary, 2)
+def bin_to_int(bstr, signed=True):
+    value = int(bstr, 2)
+    if signed and bstr[0] == '1':
+        value -= 1 << len(bstr)
+    return value
 
-def dec_to_bin(val, bits=32):
-    if val < 0:
-        val = (1 << bits) + val
-    return format(val, f'0{bits}b')
+def int_to_bin(num, bits=32):
+    if num < 0:
+        num += 1 << bits
+    return format(num, f'0{bits}b')
+
 
 def extract_fields(binary):
     fields = {
@@ -39,10 +44,10 @@ def extract_fields(binary):
         'rs1': int(binary[12:17], 2),     # bits [19:15]
         'rs2': int(binary[7:12], 2),      # bits [24:20]
         'funct7': binary[0:7],            # bits [31:25]
-        'imm_i': bin_to_dec(binary[0:12]),
-        'imm_b': bin_to_dec(binary[0] + binary[24] + binary[1:7] + binary[20:24] + '0', signed=True),
-        'imm_s': bin_to_dec(binary[0:7] + binary[20:25], signed=True),
-        'imm_j': bin_to_dec(binary[0] + binary[12:20] + binary[11] + binary[1:11] + '0', signed=True)
+        'imm_i': bin_to_int(binary[0:12]),
+        'imm_b': bin_to_int(binary[0] + binary[24] + binary[1:7] + binary[20:24] + '0', signed=True),
+        'imm_s': bin_to_int(binary[0:7] + binary[20:25], signed=True),
+        'imm_j': bin_to_int(binary[0] + binary[12:20] + binary[11] + binary[1:11] + '0', signed=True)
     }
     return fields
 
@@ -72,11 +77,13 @@ def handle_i_type(fields):
     if fields['opcode'] == '0010011':  # addi
         if rd != 0:
             REG[rd] = REG[rs1] + imm
-    elif fields['opcode'] == '1100111':  # jalr
+    elif fields['opcode'] == '1100111':  # JALR
         temp = PC + 4
-        PC = (REG[rs1] + imm) & ~1
+        new_pc = REG[rs1] + imm 
+        new_pc -= new_pc % 2    
+        PC = new_pc  
         if rd != 0:
-            REG[rd] = temp
+            REG[rd] = temp 
     elif fields['opcode'] == '0000011':  # lw
         address = REG[rs1] + imm
         key = f"0x{address:08x}"
@@ -120,11 +127,11 @@ def handle_instruction(fields):
         handle_j_type(fields)
 
 def dump_state_binary(fout):
-        fout.write(f"0b{dec_to_bin(PC)}" + " " + " ".join(f"0b{dec_to_bin(REG[i] & 0xFFFFFFFF)}" for i in range(32)) + "\n")
+        fout.write(f"0b{int_to_bin(PC)}" + " " + " ".join(f"0b{int_to_bin(REG[i] & 0xFFFFFFFF)}" for i in range(32)) + "\n")
 
 def dump_memory_binary(fout):
     for key in ORIG_MEMORY_KEYS:
-        fout.write(f"{key}:0b{dec_to_bin(memory_values[key])}\n")
+        fout.write(f"{key}:0b{int_to_bin(memory_values[key])}\n")
 
 def simulate(input_file,output_file_binary):
     global PC, REG, memory_values
