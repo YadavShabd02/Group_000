@@ -119,21 +119,14 @@ def handle_instruction(fields):
     elif opcode == '1101111':
         handle_j_type(fields)
 
-def dump_state(fout):
-    fout.write(f"{PC} " + " ".join(str(REG[i] & 0xFFFFFFFF) for i in range(32)) + "\n")
-
 def dump_state_binary(fout):
         fout.write(f"0b{dec_to_bin(PC)}" + " " + " ".join(f"0b{dec_to_bin(REG[i] & 0xFFFFFFFF)}" for i in range(32)) + "\n")
-
-def dump_memory(fout):
-    for key in ORIG_MEMORY_KEYS:
-        fout.write(f"{key}:{memory_values[key]}\n")
 
 def dump_memory_binary(fout):
     for key in ORIG_MEMORY_KEYS:
         fout.write(f"{key}:0b{dec_to_bin(memory_values[key])}\n")
 
-def simulate(input_file, output_file_decimal, output_file_binary):
+def simulate(input_file,output_file_binary):
     global PC, REG, memory_values
     REG = [0] * 32
     REG[2] = 380
@@ -143,13 +136,17 @@ def simulate(input_file, output_file_decimal, output_file_binary):
     with open(input_file, 'r') as fin:
         instructions = [line.strip() for line in fin if line.strip()]
 
-    with open(output_file_decimal, 'w') as fout_dec, open(output_file_binary, 'w') as fout_bin:
+    with open(output_file_binary, 'w') as fout_bin:
         while PC < len(instructions) * 4:
             instr = instructions[PC // 4]
             if instr == '00000000000000000000000001100011':  # HALT
-                dump_state(fout_dec)
                 dump_state_binary(fout_bin)
                 break
+            if instr=='00000000000000000000000000000000':
+                REG=[0]*32
+                dump_state_binary(fout_bin)
+                PC += 4
+                continue
 
             fields = extract_fields(instr)
             if fields['opcode'] == '1100011':  # B-type
@@ -159,24 +156,18 @@ def simulate(input_file, output_file_decimal, output_file_binary):
                 else:
                     PC += offset
                 if instructions[PC // 4] == '00000000000000000000000001100011':
-                    dump_state(fout_dec)
                     dump_state_binary(fout_bin)
                     break
                 else:
-                    dump_state(fout_dec)
                     dump_state_binary(fout_bin)
             else:
                 handle_instruction(fields)
                 if fields['opcode'] not in ['1100111', '1101111']:  # not jalr/jal
                     PC += 4
-                dump_state(fout_dec)
                 dump_state_binary(fout_bin)
 
-        dump_memory(fout_dec)
         dump_memory_binary(fout_bin)
 
-if __name__ == '__main__':
-    if len(sys.argv) != 4:
-        print("Usage: python mysim.py <input_file> <decimal_output_file> <binary_output_file>")
-    else:
-        simulate(sys.argv[1], sys.argv[2], sys.argv[3])
+input_machine_code_file_path=sys.argv[1]
+output_trace_file_path=sys.argv[2]
+simulate(input_machine_code_file_path,output_trace_file_path)
